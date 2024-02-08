@@ -1,9 +1,12 @@
 // Database models
 package models
 
-import "github.com/udonetsm/investing/interfaces"
+type Startupers struct {
+	User Users
+	Bill Bills
+}
 
-type DBEntries struct {
+type Investors struct {
 	User Users
 	Bill Bills
 }
@@ -11,7 +14,6 @@ type DBEntries struct {
 type Users struct {
 	User_id   int
 	User_name string
-	Role      bool //true - investor, false - startuper
 }
 
 type Startups struct {
@@ -19,7 +21,7 @@ type Startups struct {
 	Startuper_id int //Foreign key references Startupers.Startuper_id
 	Total        int
 	Startup_name string
-	Members      DBEntries
+	Members      Investors //Foreign key references Investors.Investor_id
 }
 
 type Bills struct {
@@ -28,6 +30,17 @@ type Bills struct {
 
 type Transaction struct {
 	Transaction_id string //Primary key
-	From           interfaces.Payer
-	To             interfaces.Getter
+	Payer          Payer
+	Reciever       Reciever
+	Sum            float32
+	Err            error
+	Success        bool
+}
+
+type Reciever interface {
+	Recieve(Transaction) Transaction
+}
+
+type Payer interface {
+	DoTransaction(Transaction) Transaction
 }
