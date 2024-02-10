@@ -13,9 +13,8 @@ import (
 	"github.com/udonetsm/investing/actions/startuper"
 	"github.com/udonetsm/investing/actions/transactions"
 	"github.com/udonetsm/investing/cache"
-	"github.com/udonetsm/investing/database/methods"
+	"github.com/udonetsm/investing/database"
 	"github.com/udonetsm/investing/models"
-	"gorm.io/gorm"
 )
 
 func TestStartuperToInvestorWithTransferError(t *testing.T) {
@@ -49,18 +48,11 @@ func TestStartuperToInvestorWithTransferError(t *testing.T) {
 		Sum:            200000,
 		Err:            errors.New("TRANSACTION ERROR IMITATE"),
 	}
-	database := methods.Database{
-		User:    "Test2",
-		Pass:    "testpass",
-		Host:    "localhost",
-		Port:    5432,
-		SSLMode: false,
-	}
 	transaction = transactions.TransferMoney(transaction)
 	if transaction.Err != nil {
 		fmt.Printf("Transaction %s losst...", transaction.Transaction_id)
 	}
-	err := general.SaveSomething(&database, transaction)
+	err := general.SaveSomething(&database.DB, transaction)
 	if err != nil {
 		err := general.SaveSomething(&cache.TC, transaction)
 		if err != nil {
@@ -72,7 +64,8 @@ func TestStartuperToInvestorWithTransferError(t *testing.T) {
 		fmt.Print("Saved into the database...")
 	}
 	if transaction.Err == nil {
-		database.Err = general.UpdateBalance(&database, ibill)
+		database.DB.Err = general.UpdateBalance(&database.DB, ibill)
+		database.DB.Err = general.UpdateBalance(&database.DB, sbill)
 		fmt.Printf("Transaction %s OK...", transaction.Transaction_id)
 	}
 	fmt.Println("\n", transaction)
@@ -108,20 +101,12 @@ func TestStartuperToInvestorWithDatabaseError(t *testing.T) {
 		Reciever:       reciever,
 		Sum:            200000,
 	}
-	database := methods.Database{
-		User:    "Test2",
-		Pass:    "testpass",
-		Host:    "localhost",
-		Port:    5432,
-		SSLMode: false,
-		// Immitate database error
-		Err: gorm.ErrInvalidDB,
-	}
+
 	transaction = transactions.TransferMoney(transaction)
 	if transaction.Err != nil {
 		fmt.Printf("Transaction %s losst...", transaction.Transaction_id)
 	}
-	err := general.SaveSomething(&database, transaction)
+	err := general.SaveSomething(&database.DB, transaction)
 	if err != nil {
 		err := general.SaveSomething(&cache.TC, transaction)
 		if err != nil {
@@ -133,7 +118,8 @@ func TestStartuperToInvestorWithDatabaseError(t *testing.T) {
 		fmt.Print("Saved into the database...")
 	}
 	if transaction.Err == nil {
-		database.Err = general.UpdateBalance(&database, ibill)
+		database.DB.Err = general.UpdateBalance(&database.DB, ibill)
+		database.DB.Err = general.UpdateBalance(&database.DB, sbill)
 		fmt.Printf("Transaction %s OK...", transaction.Transaction_id)
 	}
 	fmt.Println("\n", transaction)
@@ -169,22 +155,13 @@ func TestStartuperToInvestorWithCacheError(t *testing.T) {
 		Reciever:       reciever,
 		Sum:            200000,
 	}
-	database := methods.Database{
-		User:    "Test2",
-		Pass:    "testpass",
-		Host:    "localhost",
-		Port:    5432,
-		SSLMode: false,
-		// Immitate database error
-		Err: gorm.ErrInvalidDB,
-	}
 	// Immitate cache error
 	cache.TC.Err = errors.New("IMMITATE CACHE ERROR")
 	transaction = transactions.TransferMoney(transaction)
 	if transaction.Err != nil {
 		fmt.Printf("Transaction %s losst...", transaction.Transaction_id)
 	}
-	err := general.SaveSomething(&database, transaction)
+	err := general.SaveSomething(&database.DB, transaction)
 	if err != nil {
 		err := general.SaveSomething(&cache.TC, transaction)
 		if err != nil {
@@ -196,7 +173,8 @@ func TestStartuperToInvestorWithCacheError(t *testing.T) {
 		fmt.Print("Saved into the database...")
 	}
 	if transaction.Err == nil {
-		database.Err = general.UpdateBalance(&database, ibill)
+		database.DB.Err = general.UpdateBalance(&database.DB, ibill)
+		database.DB.Err = general.UpdateBalance(&database.DB, sbill)
 		fmt.Printf("Transaction %s OK...", transaction.Transaction_id)
 	}
 	fmt.Println("\n", transaction)
@@ -232,18 +210,11 @@ func TestStartuperToInvestorWithoutErrors(t *testing.T) {
 		Reciever:       reciever,
 		Sum:            200000,
 	}
-	database := methods.Database{
-		User:    "Test2",
-		Pass:    "testpass",
-		Host:    "localhost",
-		Port:    5432,
-		SSLMode: false,
-	}
 	transaction = transactions.TransferMoney(transaction)
 	if transaction.Err != nil {
 		log.Printf("Transaction %s losst...", transaction.Transaction_id)
 	}
-	err := general.SaveSomething(&database, transaction)
+	err := general.SaveSomething(&database.DB, transaction)
 	if err != nil {
 		err := general.SaveSomething(&cache.TC, transaction)
 		if err != nil {
@@ -255,7 +226,8 @@ func TestStartuperToInvestorWithoutErrors(t *testing.T) {
 		fmt.Print("Saved into the database...")
 	}
 	if transaction.Err == nil {
-		database.Err = general.UpdateBalance(&database, ibill)
+		database.DB.Err = general.UpdateBalance(&database.DB, ibill)
+		database.DB.Err = general.UpdateBalance(&database.DB, sbill)
 		fmt.Printf("Transaction %s OK...", transaction.Transaction_id)
 	}
 	fmt.Println("\n", transaction)
