@@ -16,6 +16,11 @@ func TransferMoney(transaction models.Transaction) models.Transaction {
 	}
 	//Проверяем что получаеть получил необходимую сумму
 	// (нужная транзакция есть на счете получателя)
+	// Вынести это в отдельную горутину и не завершать
+	// эту функцию, пока горутина не завершится.
 	transaction = transaction.Reciever.Recieve(transaction)
+	// Ждем пока транзакция дойдет до получателя.
+	// Когда транзакция дошла
+	transaction.Success = true
 	return transaction
 }
