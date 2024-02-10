@@ -11,24 +11,14 @@ type Startuper models.Startupers
 
 // Startuper может вернуть деньги инветору.
 func (from Startuper) DoTransaction(transaction models.Transaction) models.Transaction {
-	var err error
-	//err = Запросить баланс банковского счета отправителя
-	// и зарезервировать нужную сумму
-	// Если возникла какая-либо ошибка, транзакция не осуществляется
-	// и ошибка возвращается "наверх".
-	// Возможно не хватает средств или банк отклонил соединение
-	if err != nil {
+	// err:= Проверяем баланс Payer-а
+	if transaction.Err != nil {
 		// Ошибку проверки баланса можно кастомизировать здесь
-		transaction.Err = err
 		return transaction
 	}
 	// Если средств достаточно и ошибки нет то делаем транзакцию
-	// err:= Запрос внутренней транзакции
-	if err != nil {
-		transaction.Err = err
-	}
-	// Транзакция успешна, раппортуем об этом
-	// и записываем транзакцию в базу, в таблицу Transactions
+	from.Bill.Balance -= transaction.Sum
+	transaction.Payer = from
 	return transaction
 }
 
@@ -43,5 +33,7 @@ func (to Investor) Recieve(transaction models.Transaction) models.Transaction {
 		return transaction
 	}
 	// Деньги пришли
+	to.Bill.Balance += transaction.Sum
+	transaction.Reciever = to
 	return transaction
 }
