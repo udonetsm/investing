@@ -9,216 +9,264 @@ import (
 	"testing"
 	"time"
 
-	"github.com/udonetsm/investing/actions/investor"
+	"github.com/udonetsm/investing/actions/general"
 	"github.com/udonetsm/investing/actions/startuper"
 	"github.com/udonetsm/investing/actions/transactions"
 	"github.com/udonetsm/investing/cache"
-	"github.com/udonetsm/investing/database/calls"
+	"github.com/udonetsm/investing/database/methods"
 	"github.com/udonetsm/investing/models"
 	"gorm.io/gorm"
 )
 
-var Cache cache.TransactionCache
-
-func init() {
-	Cache = *cache.NewCache()
-}
-
-// Test if Transaction isn't success and database isn't available
-func TestInvestorTransfersMoneyToStartuper(t *testing.T) {
-	fmt.Println()
-	ibill := models.Bills{Bill_id: 123456}
-	sbill := models.Bills{Bill_id: 456789}
-	payer := investor.Investor{User: models.Users{
-		User_name: "RICHMAN",
-		User_id:   987654321,
-	},
-		Bill: ibill,
-	}
-	getter := investor.Startuper{User: models.Users{
+func TestStartuperToInvestorWithTransferError(t *testing.T) {
+	suser := models.Users{
+		User_id:   98765,
 		User_name: "POORMAN",
-		User_id:   1234567890,
-	},
-		Bill: sbill}
-	transaction := models.Transaction{
-		// Временная генерация transaction_id.
-		// В дальнейшем можно брать id из банковской транзакции,
-		// а здесь оставлять поле пустым
-		Transaction_id: strconv.Itoa(int(time.Now().UnixNano())),
-		Sum:            100000,
-		Payer:          payer,
-		Reciever:       getter,
-		Err:            nil,
+		Raiting:   12,
 	}
-	transaction = transactions.TransferMoney(transaction)
-	transaction.Err = errors.New("ERROR WHILE TRANSACTION AND DATABASE ISN'T AVAILABLE")
-	if transaction.Err != nil {
-		err := calls.SaveTransactios(transaction)
-		err = gorm.ErrInvalidDB
-		if err != nil {
-			Cache.Insert(transaction)
-			log.Println(err, "Saved into the cache")
-			return
-		}
-	} else {
-		transaction.Success = true
-		err := calls.SaveTransactios(transaction)
-		if err != nil {
-			Cache.Insert(transaction)
-			log.Println(err, "Saved into the cache")
-			return
-		}
+	sbill := models.Bills{
+		Bill_id: 123,
+		Balance: 300000,
 	}
-	fmt.Println(transaction)
-}
-
-// Test if transaction isn't success and db is available
-func TestStartuperTransfersMoneyToInvestor(t *testing.T) {
-	fmt.Println()
-	ibill := models.Bills{Bill_id: 876591}
-	sbill := models.Bills{Bill_id: 123409}
-	payer := startuper.Startuper{User: models.Users{
-		User_name: "POORMAN",
-		User_id:   692683000,
-	},
+	payer := startuper.Startuper{
+		User: suser,
 		Bill: sbill,
 	}
-	getter := startuper.Investor{User: models.Users{
+	iuser := models.Users{
+		User_id:   54321,
 		User_name: "RICHMAN",
-		User_id:   859748000,
-	},
+		Raiting:   30,
+	}
+	ibill := models.Bills{Bill_id: 456, Balance: 850000}
+	reciever := startuper.Investor{
+		User: iuser,
 		Bill: ibill,
 	}
 	transaction := models.Transaction{
-		// Временная генерация transaction_id.
-		// В дальнейшем можно брать id из банковской транзакции,
-		// а здесь оставлять поле пустым
 		Transaction_id: strconv.Itoa(int(time.Now().UnixNano())),
 		Payer:          payer,
-		Reciever:       getter,
+		Reciever:       reciever,
 		Sum:            200000,
-		Err:            nil,
+		Err:            errors.New("TRANSACTION ERROR IMITATE"),
+	}
+	database := methods.Database{
+		User:    "Test2",
+		Pass:    "testpass",
+		Host:    "localhost",
+		Port:    5432,
+		SSLMode: false,
 	}
 	transaction = transactions.TransferMoney(transaction)
-	transaction.Err = errors.New("ERROR WHILE TRANSACTION AND DATABASE IS AVAILABLE")
 	if transaction.Err != nil {
-		err := calls.SaveTransactios(transaction)
+		fmt.Printf("Transaction %s losst...", transaction.Transaction_id)
+	}
+	err := general.SaveSomething(&database, transaction)
+	if err != nil {
+		err := general.SaveSomething(&cache.TC, transaction)
 		if err != nil {
-			Cache.Insert(transaction)
-			log.Println(err, "Saved into the cache")
-			return
+			fmt.Print("Не получилось сохранить в базу и кэш...")
+		} else {
+			fmt.Print("Saved into the cache...")
 		}
 	} else {
-		transaction.Success = true
-		err := calls.SaveTransactios(transaction)
-		if err != nil {
-			Cache.Insert(transaction)
-			log.Println(err, "Saved into the cache")
-			return
-		}
+		fmt.Print("Saved into the database...")
 	}
-	fmt.Println(transaction)
+	if transaction.Err == nil {
+		database.Err = general.UpdateBalance(&database, ibill)
+		fmt.Printf("Transaction %s OK...", transaction.Transaction_id)
+	}
+	fmt.Println("\n", transaction)
 }
 
-// Test if transaction is success and database isn't available
-func TestDatabaseDatabaseUnavailable(t *testing.T) {
-	fmt.Println()
-	ibill := models.Bills{Bill_id: 654321}
-	sbill := models.Bills{Bill_id: 567890}
-	payer := startuper.Startuper{User: models.Users{
+func TestStartuperToInvestorWithDatabaseError(t *testing.T) {
+	suser := models.Users{
+		User_id:   98765,
 		User_name: "POORMAN",
-		User_id:   996438856734,
-	},
+		Raiting:   12,
+	}
+	sbill := models.Bills{
+		Bill_id: 123,
+		Balance: 300000,
+	}
+	payer := startuper.Startuper{
+		User: suser,
 		Bill: sbill,
 	}
-	getter := startuper.Investor{User: models.Users{
+	iuser := models.Users{
+		User_id:   54321,
 		User_name: "RICHMAN",
-		User_id:   995623476283,
-	},
+		Raiting:   30,
+	}
+	ibill := models.Bills{Bill_id: 456, Balance: 850000}
+	reciever := startuper.Investor{
+		User: iuser,
 		Bill: ibill,
 	}
 	transaction := models.Transaction{
-		// Временная генерация transaction_id.
-		// В дальнейшем можно брать id из банковской транзакции,
-		// а здесь оставлять поле пустым
 		Transaction_id: strconv.Itoa(int(time.Now().UnixNano())),
 		Payer:          payer,
-		Reciever:       getter,
+		Reciever:       reciever,
 		Sum:            200000,
-		Err:            nil,
+	}
+	database := methods.Database{
+		User:    "Test2",
+		Pass:    "testpass",
+		Host:    "localhost",
+		Port:    5432,
+		SSLMode: false,
+		// Immitate database error
+		Err: gorm.ErrInvalidDB,
 	}
 	transaction = transactions.TransferMoney(transaction)
 	if transaction.Err != nil {
-		err := calls.SaveTransactios(transaction)
-		if err != nil {
-			Cache.Insert(transaction)
-			log.Println(err, "Saved into the cache")
-			return
-		}
-		return
-	} else {
-		transaction.Success = true
-		err := calls.SaveTransactios(transaction)
-		err = gorm.ErrInvalidDB
-		if err != nil {
-			Cache.Insert(transaction)
-			log.Println(err, "Saved into the cache")
-			return
-		}
+		fmt.Printf("Transaction %s losst...", transaction.Transaction_id)
 	}
-	log.Println(transaction)
+	err := general.SaveSomething(&database, transaction)
+	if err != nil {
+		err := general.SaveSomething(&cache.TC, transaction)
+		if err != nil {
+			fmt.Print("Не получилось сохранить в базу и кэш...")
+		} else {
+			fmt.Print("Saved into the cache...")
+		}
+	} else {
+		fmt.Print("Saved into the database...")
+	}
+	if transaction.Err == nil {
+		database.Err = general.UpdateBalance(&database, ibill)
+		fmt.Printf("Transaction %s OK...", transaction.Transaction_id)
+	}
+	fmt.Println("\n", transaction)
 }
 
-func TestAllErrorsAreNil(t *testing.T) {
-	fmt.Println()
-	ibill := models.Bills{Bill_id: 654321}
-	sbill := models.Bills{Bill_id: 567890}
-	payer := startuper.Startuper{User: models.Users{
+func TestStartuperToInvestorWithCacheError(t *testing.T) {
+	suser := models.Users{
+		User_id:   98765,
 		User_name: "POORMAN",
-		User_id:   996438856734,
-	},
+		Raiting:   12,
+	}
+	sbill := models.Bills{
+		Bill_id: 123,
+		Balance: 300000,
+	}
+	payer := startuper.Startuper{
+		User: suser,
 		Bill: sbill,
 	}
-	getter := startuper.Investor{User: models.Users{
+	iuser := models.Users{
+		User_id:   54321,
 		User_name: "RICHMAN",
-		User_id:   995623476283,
-	},
+		Raiting:   30,
+	}
+	ibill := models.Bills{Bill_id: 456, Balance: 850000}
+	reciever := startuper.Investor{
+		User: iuser,
 		Bill: ibill,
 	}
 	transaction := models.Transaction{
-		// Временная генерация transaction_id.
-		// В дальнейшем можно брать id из банковской транзакции,
-		// а здесь оставлять поле пустым
 		Transaction_id: strconv.Itoa(int(time.Now().UnixNano())),
 		Payer:          payer,
-		Reciever:       getter,
+		Reciever:       reciever,
 		Sum:            200000,
-		Err:            nil,
+	}
+	database := methods.Database{
+		User:    "Test2",
+		Pass:    "testpass",
+		Host:    "localhost",
+		Port:    5432,
+		SSLMode: false,
+		// Immitate database error
+		Err: gorm.ErrInvalidDB,
+	}
+	// Immitate cache error
+	cache.TC.Err = errors.New("IMMITATE CACHE ERROR")
+	transaction = transactions.TransferMoney(transaction)
+	if transaction.Err != nil {
+		fmt.Printf("Transaction %s losst...", transaction.Transaction_id)
+	}
+	err := general.SaveSomething(&database, transaction)
+	if err != nil {
+		err := general.SaveSomething(&cache.TC, transaction)
+		if err != nil {
+			fmt.Print("Не получилось сохранить в базу и кэш...")
+		} else {
+			fmt.Print("Saved into the cache...")
+		}
+	} else {
+		fmt.Print("Saved into the database...")
+	}
+	if transaction.Err == nil {
+		database.Err = general.UpdateBalance(&database, ibill)
+		fmt.Printf("Transaction %s OK...", transaction.Transaction_id)
+	}
+	fmt.Println("\n", transaction)
+}
+
+func TestStartuperToInvestorWithoutErrors(t *testing.T) {
+	suser := models.Users{
+		User_id:   98765,
+		User_name: "POORMAN",
+		Raiting:   12,
+	}
+	sbill := models.Bills{
+		Bill_id: 123,
+		Balance: 300000,
+	}
+	payer := startuper.Startuper{
+		User: suser,
+		Bill: sbill,
+	}
+	iuser := models.Users{
+		User_id:   54321,
+		User_name: "RICHMAN",
+		Raiting:   30,
+	}
+	ibill := models.Bills{Bill_id: 456, Balance: 850000}
+	reciever := startuper.Investor{
+		User: iuser,
+		Bill: ibill,
+	}
+	transaction := models.Transaction{
+		Transaction_id: strconv.Itoa(int(time.Now().UnixNano())),
+		Payer:          payer,
+		Reciever:       reciever,
+		Sum:            200000,
+	}
+	database := methods.Database{
+		User:    "Test2",
+		Pass:    "testpass",
+		Host:    "localhost",
+		Port:    5432,
+		SSLMode: false,
 	}
 	transaction = transactions.TransferMoney(transaction)
 	if transaction.Err != nil {
-		err := calls.SaveTransactios(transaction)
-		if err != nil {
-			Cache.Insert(transaction)
-			log.Println(err, "Saved into the cache")
-			return
-		}
-		return
-	} else {
-		transaction.Success = true
-		err := calls.SaveTransactios(transaction)
-		if err != nil {
-			Cache.Insert(transaction)
-			log.Println(err, "Saved into the cache")
-			return
-		}
+		log.Printf("Transaction %s losst...", transaction.Transaction_id)
 	}
-	log.Println(transaction)
+	err := general.SaveSomething(&database, transaction)
+	if err != nil {
+		err := general.SaveSomething(&cache.TC, transaction)
+		if err != nil {
+			fmt.Print("Не получилось сохранить в базу и кэш...")
+		} else {
+			fmt.Print("Saved into the cache...")
+		}
+	} else {
+		fmt.Print("Saved into the database...")
+	}
+	if transaction.Err == nil {
+		database.Err = general.UpdateBalance(&database, ibill)
+		fmt.Printf("Transaction %s OK...", transaction.Transaction_id)
+	}
+	fmt.Println("\n", transaction)
+}
+
+func showCache(m map[string]any) {
+	for _, v := range m {
+		log.Println(v)
+	}
 }
 
 func TestCache(t *testing.T) {
-	for _, v := range Cache.Storage {
-		log.Println(v)
-		fmt.Println()
-	}
+	showCache(cache.TC.Storage)
 }
