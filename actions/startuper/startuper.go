@@ -3,37 +3,75 @@
 package startuper
 
 import (
+	"github.com/udonetsm/investing/actions/general"
 	"github.com/udonetsm/investing/models"
 )
 
 type Investor models.Investors
 type Startuper models.Startupers
 
-// Startuper может вернуть деньги инветору.
-func (from Startuper) DoTransaction(transaction models.Transaction) models.Transaction {
-	// err:= Проверяем баланс Payer-а
+// Перевести деньги инвестору(на его внутренний счет)
+func (s *Startuper) Pay(transaction *models.Transaction) {
 	if transaction.Err != nil {
-		// Ошибку проверки баланса можно кастомизировать здесь
-		return transaction
+		return
 	}
-	// Если средств достаточно и ошибки нет то делаем транзакцию
-	from.Bill.Balance -= transaction.Sum
-	transaction.Payer = from
-	return transaction
+	if transaction.Accepted {
+		s.Bill.Balance -= transaction.Transaction_sum
+	}
 }
 
-// Проверяет, получил ли инветор деньги от стартапера.
-// Можно, через nats, прикрутить подписку на обновление баланса
-func (to Investor) Recieve(transaction models.Transaction) models.Transaction {
-	var err error
-	// err = Проверка транзакции(деньги поступили?).
-	if err != nil {
-		// Деньги не пришли
-		transaction.Err = err
-		return transaction
+// Пополнить баланс стартапера(его внутренний счет)
+func (s *Startuper) Recieve(transaction *models.Transaction) {
+	if transaction.Err != nil {
+		return
 	}
-	// Деньги пришли
-	to.Bill.Balance += transaction.Sum
-	transaction.Reciever = to
-	return transaction
+	s.Bill.Balance += transaction.Transaction_sum
+	// Деньги поступили на счет. Транзакция успешна
+	transaction.Success = true
+}
+
+// Запросить у инветора транзакцию.
+// Транзикия должна собраться на основе того
+// какие значения будут введены стартапером
+// в пользовательские формы на сайте или в приложении.
+// Доступно несколько видов транзакций
+// См. transactioner/transactioner.go или interfaces/interfaces.go:Transactioner
+func (s *Startuper) RequestTransaction(transaction *models.Transaction) {
+	if transaction.Err != nil {
+		return
+	}
+	transaction.Err = general.MakeRequest(transaction)
+}
+
+// Перед тем как совершать транзакцию, нужно получить подтверждение от стратапера
+// Эта функция задействуется, когда инвестор запрашивает у стартапера внутренний первод
+// Инветсор создает транзакцию, указывает конкретного стартапера плательщиком
+// Указвает сумму. Транзакция ожидает подтверждения от стартапера, что он готов
+// совершить перевод инвестору. Это задействуется когда инвестор просит стартапера
+// вернуть инвестированные деньги. Сумма может быть любая но
+// не больше инвестированной и не меньше чем есть на счете стратапера+процент.
+// Процент прибыли рассчитывает система.
+func (s *Startuper) AcceptTransaction(transaction *models.Transaction) {
+	// Бизнес-логика подтверждения операции
+	if transaction.Err != nil {
+		return
+	}
+	// Показать запрос отправителю
+	// Получить от него явное согласие на транзакцию.
+}
+
+// Пополняет счет с внешних ресурсов(карт, кошельков и т.д)
+func (s *Startuper) Topup(transaction *models.Transaction) {
+	if transaction.Err != nil {
+		return
+	}
+	// Бизнес логика пополнения внутреннего баланса
+}
+
+// Снимает деньги с внутреннего счета на счет в банке, кошелек и т.д
+func (s *Startuper) Withdraw(transaction *models.Transaction) {
+	if transaction.Err != nil {
+		return
+	}
+	// Бизнес логика снятия денег со внутреннего счета
 }
