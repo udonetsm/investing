@@ -9,12 +9,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/udonetsm/investing/actions/general"
-	"github.com/udonetsm/investing/actions/investor"
-	"github.com/udonetsm/investing/actions/startuper"
-	"github.com/udonetsm/investing/actions/system"
-	"github.com/udonetsm/investing/cache"
-	"github.com/udonetsm/investing/database"
+	"github.com/udonetsm/investing/actors/cache"
+	"github.com/udonetsm/investing/actors/database"
+	"github.com/udonetsm/investing/actors/investor"
+	"github.com/udonetsm/investing/actors/startuper"
+	"github.com/udonetsm/investing/actors/system"
+	"github.com/udonetsm/investing/general"
 	"github.com/udonetsm/investing/models"
 )
 
