@@ -12,7 +12,7 @@ import (
 	"github.com/udonetsm/investing/actions/general"
 	"github.com/udonetsm/investing/actions/investor"
 	"github.com/udonetsm/investing/actions/startuper"
-	"github.com/udonetsm/investing/actions/transactioner"
+	"github.com/udonetsm/investing/actions/system"
 	"github.com/udonetsm/investing/cache"
 	"github.com/udonetsm/investing/database"
 	"github.com/udonetsm/investing/models"
@@ -58,7 +58,7 @@ func TestStartuperToInvestorWithoutError(t *testing.T) {
 		Transaction_type: models.TRANSFER,
 	}
 
-	system := &transactioner.System{}
+	system := &system.System{}
 	general.RequestTansaction(reciever, transaction)
 	if transaction.Err != nil {
 		transaction.Err = errors.New("Request transaction error")
@@ -121,7 +121,7 @@ func TestTopup(t *testing.T) {
 		Payer:            payer,
 		Reciever:         payer,
 	}
-	system := &transactioner.System{}
+	system := &system.System{}
 	general.MakeTransaction(system, transaction)
 	if transaction.Err != nil {
 		save(transaction)
@@ -151,7 +151,7 @@ func TestWthdraw(t *testing.T) {
 		Payer:            payer,
 		Reciever:         payer,
 	}
-	system := &transactioner.System{}
+	system := &system.System{}
 	general.MakeTransaction(system, transaction)
 	if transaction.Err != nil {
 		save(transaction)
@@ -200,7 +200,7 @@ func TestTransferWithTransactionError(t *testing.T) {
 		Transaction_type: models.TRANSFER,
 	}
 
-	system := &transactioner.System{}
+	system := &system.System{}
 	general.RequestTansaction(reciever, transaction)
 	if transaction.Err != nil {
 		transaction.Err = errors.New("Request transaction error")
@@ -263,7 +263,7 @@ func TestTransferWithTransactionAndDatabaseError(t *testing.T) {
 		Transaction_type: models.TRANSFER,
 	}
 
-	system := &transactioner.System{}
+	system := &system.System{}
 	general.RequestTansaction(reciever, transaction)
 	if transaction.Err != nil {
 		transaction.Err = errors.New("Request transaction error")

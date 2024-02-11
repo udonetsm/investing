@@ -1,5 +1,5 @@
 // All transactions
-package transactioner
+package system
 
 import (
 	"github.com/udonetsm/investing/models"
