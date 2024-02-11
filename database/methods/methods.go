@@ -8,11 +8,9 @@ import (
 type Database models.Database
 
 // Делаю тип Database Saver-ом
-func (d *Database) Save(object any) error {
-	funcs.SaveTransaction(object.(models.Transaction))
-	return d.Err
-}
-
-func (d *Database) BalanceUpdate(object any) error {
-	return funcs.UpdateBalances(object.(models.Bills))
+func (d *Database) Save(transaction *models.Transaction) {
+	if d.Err != nil {
+		return
+	}
+	funcs.SaveTransaction(transaction)
 }

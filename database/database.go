@@ -1,8 +1,6 @@
 package database
 
-import (
-	"github.com/udonetsm/investing/database/methods"
-)
+import "github.com/udonetsm/investing/database/methods"
 
 var DB methods.Database
 

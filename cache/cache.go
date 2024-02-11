@@ -8,13 +8,13 @@ import (
 
 type TransactionCache models.Cache
 
-var TC TransactionCache
+var TransactionsCache TransactionCache
 
 func init() {
-	TC = NewCache()
+	TransactionsCache = NewTransactionCache()
 }
 
-func NewCache() TransactionCache {
+func NewTransactionCache() TransactionCache {
 	return TransactionCache{
 		Mux:     new(sync.Mutex),
 		Storage: NewStorage().(map[string]any),
@@ -26,15 +26,18 @@ func NewStorage() any {
 }
 
 // Private method
-func insertTransaction(c *TransactionCache, t any) error {
+func insertTransaction(c *TransactionCache, transaction *models.Transaction) error {
 	if c.Err != nil {
 		return c.Err
 	}
-	c.Storage[t.(models.Transaction).Transaction_id] = t.(models.Transaction)
+	c.Storage[transaction.Transaction_id] = transaction
 	return nil
 }
 
 // Делаю TransactionCache Saver-ом
-func (c *TransactionCache) Save(t any) (err error) {
-	return insertTransaction(c, t)
+func (transactionCache *TransactionCache) Save(transaction *models.Transaction) {
+	if transactionCache.Err != nil {
+		return
+	}
+	insertTransaction(transactionCache, transaction)
 }
