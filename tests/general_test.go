@@ -10,227 +10,282 @@ import (
 	"time"
 
 	"github.com/udonetsm/investing/actions/general"
+	"github.com/udonetsm/investing/actions/investor"
 	"github.com/udonetsm/investing/actions/startuper"
-	"github.com/udonetsm/investing/actions/transactions"
+	"github.com/udonetsm/investing/actions/transactioner"
 	"github.com/udonetsm/investing/cache"
 	"github.com/udonetsm/investing/database"
 	"github.com/udonetsm/investing/models"
 )
 
-func TestStartuperToInvestorWithTransferError(t *testing.T) {
-	suser := models.Users{
-		User_id:   98765,
-		User_name: "POORMAN",
-		Raiting:   12,
-	}
+func TestStartuperToInvestorWithoutError(t *testing.T) {
 	sbill := models.Bills{
 		Bill_id: 123,
 		Balance: 300000,
 	}
-	payer := startuper.Startuper{
+	suser := models.Users{
+		User_id:   98765,
+		User_name: "POORMAN",
+		Raiting:   12,
+		Bill_id:   sbill.Bill_id,
+	}
+	payer := &startuper.Startuper{
 		User: suser,
 		Bill: sbill,
+	}
+	ibill := models.Bills{
+		Bill_id: 456,
+		Balance: 850000,
 	}
 	iuser := models.Users{
 		User_id:   54321,
 		User_name: "RICHMAN",
 		Raiting:   30,
+		Bill_id:   ibill.Bill_id,
 	}
-	ibill := models.Bills{Bill_id: 456, Balance: 850000}
-	reciever := startuper.Investor{
+	reciever := &investor.Investor{
 		User: iuser,
 		Bill: ibill,
 	}
-	transaction := models.Transaction{
-		Transaction_id: strconv.Itoa(int(time.Now().UnixNano())),
-		Payer:          payer,
-		Reciever:       reciever,
-		Sum:            200000,
-		Err:            errors.New("TRANSACTION ERROR IMITATE"),
+
+	transaction := &models.Transaction{
+		Transaction_id:   strconv.Itoa(int(time.Now().UnixNano())),
+		Payer:            payer,
+		Reciever:         reciever,
+		Transaction_sum:  200000,
+		Accepted:         true,
+		Success:          false,
+		Transaction_type: models.TRANSFER,
 	}
-	transaction = transactions.TransferMoney(transaction)
+
+	system := &transactioner.System{}
+	general.RequestTansaction(reciever, transaction)
 	if transaction.Err != nil {
-		fmt.Printf("Transaction %s losst...", transaction.Transaction_id)
+		transaction.Err = errors.New("Request transaction error")
+		return
 	}
-	err := general.SaveSomething(&database.DB, transaction)
-	if err != nil {
-		err := general.SaveSomething(&cache.TC, transaction)
-		if err != nil {
-			fmt.Print("Не получилось сохранить в базу и кэш...")
-		} else {
-			fmt.Print("Saved into the cache...")
-		}
-	} else {
-		fmt.Print("Saved into the database...")
+	general.AcceptTransaction(payer, transaction)
+	if !transaction.Accepted {
+		transaction.Err = errors.New("Denied by payer")
+		save(transaction)
+		return
 	}
-	if transaction.Err == nil {
-		database.DB.Err = general.UpdateBalance(&database.DB, ibill)
-		database.DB.Err = general.UpdateBalance(&database.DB, sbill)
-		fmt.Printf("Transaction %s OK...", transaction.Transaction_id)
+	general.MakeTransaction(system, transaction)
+	if transaction.Err != nil {
+		// В процессе транзакции произошла ошибка
+		// Сохранить в бд. Если не получилось в бд, сохранить в кэш
+		save(transaction)
+		return
 	}
-	fmt.Println("\n", transaction)
+	// Посмотреть как изменились и изменились ли былансы при отсутствии ошибок во время всех операций
+	fmt.Println(transaction.Payer, transaction.Reciever)
+	save(transaction)
 }
 
-func TestStartuperToInvestorWithDatabaseError(t *testing.T) {
-	suser := models.Users{
-		User_id:   98765,
-		User_name: "POORMAN",
-		Raiting:   12,
-	}
-	sbill := models.Bills{
-		Bill_id: 123,
-		Balance: 300000,
-	}
-	payer := startuper.Startuper{
-		User: suser,
-		Bill: sbill,
-	}
-	iuser := models.Users{
-		User_id:   54321,
-		User_name: "RICHMAN",
-		Raiting:   30,
-	}
-	ibill := models.Bills{Bill_id: 456, Balance: 850000}
-	reciever := startuper.Investor{
-		User: iuser,
-		Bill: ibill,
-	}
-	transaction := models.Transaction{
-		Transaction_id: strconv.Itoa(int(time.Now().UnixNano())),
-		Payer:          payer,
-		Reciever:       reciever,
-		Sum:            200000,
-	}
-
-	transaction = transactions.TransferMoney(transaction)
-	if transaction.Err != nil {
-		fmt.Printf("Transaction %s losst...", transaction.Transaction_id)
-	}
-	err := general.SaveSomething(&database.DB, transaction)
-	if err != nil {
-		err := general.SaveSomething(&cache.TC, transaction)
-		if err != nil {
-			fmt.Print("Не получилось сохранить в базу и кэш...")
+func save(transaction *models.Transaction) {
+	general.SaveSomething(&database.DB, transaction)
+	if database.DB.Err != nil {
+		fmt.Print("Database error...")
+		general.SaveSomething(&cache.TransactionsCache, transaction)
+		if cache.TransactionsCache.Err != nil {
+			fmt.Print("Cache error...")
+			return
 		} else {
-			fmt.Print("Saved into the cache...")
+			fmt.Printf("Saved into the cache...%v %v %v\n", transaction.Success, transaction.Transaction_id, transaction.Err)
+			return
 		}
 	} else {
-		fmt.Print("Saved into the database...")
+		fmt.Println("Saved into the database...\n", transaction.Success, transaction.Transaction_id, transaction.Err)
+		return
 	}
-	if transaction.Err == nil {
-		database.DB.Err = general.UpdateBalance(&database.DB, ibill)
-		database.DB.Err = general.UpdateBalance(&database.DB, sbill)
-		fmt.Printf("Transaction %s OK...", transaction.Transaction_id)
-	}
-	fmt.Println("\n", transaction)
 }
 
-func TestStartuperToInvestorWithCacheError(t *testing.T) {
-	suser := models.Users{
-		User_id:   98765,
-		User_name: "POORMAN",
-		Raiting:   12,
-	}
-	sbill := models.Bills{
+func TestTopup(t *testing.T) {
+	pbill := models.Bills{
 		Bill_id: 123,
 		Balance: 300000,
 	}
-	payer := startuper.Startuper{
-		User: suser,
-		Bill: sbill,
-	}
-	iuser := models.Users{
-		User_id:   54321,
-		User_name: "RICHMAN",
+	puser := models.Users{
+		User_id:   990,
+		Bill_id:   pbill.Bill_id,
+		User_name: "TOPUPER",
 		Raiting:   30,
 	}
-	ibill := models.Bills{Bill_id: 456, Balance: 850000}
-	reciever := startuper.Investor{
-		User: iuser,
-		Bill: ibill,
+	payer := &investor.Investor{
+		User: puser,
+		Bill: pbill,
 	}
-	transaction := models.Transaction{
-		Transaction_id: strconv.Itoa(int(time.Now().UnixNano())),
-		Payer:          payer,
-		Reciever:       reciever,
-		Sum:            200000,
+	transaction := &models.Transaction{
+		Transaction_id:   strconv.Itoa(int(time.Now().UnixNano())),
+		Transaction_type: models.TOPUP,
+		Payer:            payer,
+		Reciever:         payer,
 	}
-	// Immitate cache error
-	cache.TC.Err = errors.New("IMMITATE CACHE ERROR")
-	transaction = transactions.TransferMoney(transaction)
+	system := &transactioner.System{}
+	general.MakeTransaction(system, transaction)
 	if transaction.Err != nil {
-		fmt.Printf("Transaction %s losst...", transaction.Transaction_id)
+		save(transaction)
+		return
 	}
-	err := general.SaveSomething(&database.DB, transaction)
-	if err != nil {
-		err := general.SaveSomething(&cache.TC, transaction)
-		if err != nil {
-			fmt.Print("Не получилось сохранить в базу и кэш...")
-		} else {
-			fmt.Print("Saved into the cache...")
-		}
-	} else {
-		fmt.Print("Saved into the database...")
-	}
-	if transaction.Err == nil {
-		database.DB.Err = general.UpdateBalance(&database.DB, ibill)
-		database.DB.Err = general.UpdateBalance(&database.DB, sbill)
-		fmt.Printf("Transaction %s OK...", transaction.Transaction_id)
-	}
-	fmt.Println("\n", transaction)
+	save(transaction)
 }
 
-func TestStartuperToInvestorWithoutErrors(t *testing.T) {
-	suser := models.Users{
-		User_id:   98765,
-		User_name: "POORMAN",
-		Raiting:   12,
-	}
-	sbill := models.Bills{
+func TestWthdraw(t *testing.T) {
+	pbill := models.Bills{
 		Bill_id: 123,
 		Balance: 300000,
 	}
-	payer := startuper.Startuper{
+	puser := models.Users{
+		User_id:   880,
+		Bill_id:   pbill.Bill_id,
+		User_name: "WITHDRAWER",
+		Raiting:   10,
+	}
+	payer := &startuper.Startuper{
+		User: puser,
+		Bill: pbill,
+	}
+	transaction := &models.Transaction{
+		Transaction_id:   strconv.Itoa(int(time.Now().UnixNano())),
+		Transaction_type: models.WITHDRAW,
+		Payer:            payer,
+		Reciever:         payer,
+	}
+	system := &transactioner.System{}
+	general.MakeTransaction(system, transaction)
+	if transaction.Err != nil {
+		save(transaction)
+		return
+	}
+	save(transaction)
+}
+
+func TestTransferWithTransactionError(t *testing.T) {
+	sbill := models.Bills{
+		Bill_id: 374,
+		Balance: 3300000,
+	}
+	suser := models.Users{
+		User_id:   87543,
+		User_name: "SOMEUSER",
+		Raiting:   20,
+		Bill_id:   sbill.Bill_id,
+	}
+	payer := &startuper.Startuper{
 		User: suser,
 		Bill: sbill,
+	}
+	ibill := models.Bills{
+		Bill_id: 456,
+		Balance: 850000,
 	}
 	iuser := models.Users{
 		User_id:   54321,
 		User_name: "RICHMAN",
 		Raiting:   30,
+		Bill_id:   ibill.Bill_id,
 	}
-	ibill := models.Bills{Bill_id: 456, Balance: 850000}
-	reciever := startuper.Investor{
+	reciever := &investor.Investor{
 		User: iuser,
 		Bill: ibill,
 	}
-	transaction := models.Transaction{
-		Transaction_id: strconv.Itoa(int(time.Now().UnixNano())),
-		Payer:          payer,
-		Reciever:       reciever,
-		Sum:            200000,
+
+	transaction := &models.Transaction{
+		Transaction_id:   strconv.Itoa(int(time.Now().UnixNano())),
+		Payer:            payer,
+		Reciever:         reciever,
+		Transaction_sum:  200000,
+		Accepted:         true,
+		Success:          false,
+		Transaction_type: models.TRANSFER,
 	}
-	transaction = transactions.TransferMoney(transaction)
+
+	system := &transactioner.System{}
+	general.RequestTansaction(reciever, transaction)
 	if transaction.Err != nil {
-		log.Printf("Transaction %s losst...", transaction.Transaction_id)
+		transaction.Err = errors.New("Request transaction error")
+		return
 	}
-	err := general.SaveSomething(&database.DB, transaction)
-	if err != nil {
-		err := general.SaveSomething(&cache.TC, transaction)
-		if err != nil {
-			fmt.Print("Не получилось сохранить в базу и кэш...")
-		} else {
-			fmt.Print("Saved into the cache...")
-		}
-	} else {
-		fmt.Print("Saved into the database...")
+	general.AcceptTransaction(payer, transaction)
+	if !transaction.Accepted {
+		transaction.Err = errors.New("Denied by payer")
+		save(transaction)
+		return
 	}
-	if transaction.Err == nil {
-		database.DB.Err = general.UpdateBalance(&database.DB, ibill)
-		database.DB.Err = general.UpdateBalance(&database.DB, sbill)
-		fmt.Printf("Transaction %s OK...", transaction.Transaction_id)
+	transaction.Err = errors.New("Simulated error")
+	general.MakeTransaction(system, transaction)
+	if transaction.Err != nil {
+		// В процессе транзакции произошла ошибка
+		// Сохранить в бд. Если не получилось в бд, сохранить в кэш
+		save(transaction)
+		return
 	}
-	fmt.Println("\n", transaction)
+	save(transaction)
+}
+
+func TestTransferWithTransactionAndDatabaseError(t *testing.T) {
+	sbill := models.Bills{
+		Bill_id: 374,
+		Balance: 3300000,
+	}
+	suser := models.Users{
+		User_id:   87543,
+		User_name: "SOMEUSER",
+		Raiting:   20,
+		Bill_id:   sbill.Bill_id,
+	}
+	payer := &startuper.Startuper{
+		User: suser,
+		Bill: sbill,
+	}
+	ibill := models.Bills{
+		Bill_id: 456,
+		Balance: 850000,
+	}
+	iuser := models.Users{
+		User_id:   54321,
+		User_name: "RICHMAN",
+		Raiting:   30,
+		Bill_id:   ibill.Bill_id,
+	}
+	reciever := &investor.Investor{
+		User: iuser,
+		Bill: ibill,
+	}
+
+	transaction := &models.Transaction{
+		Transaction_id:   strconv.Itoa(int(time.Now().UnixNano())),
+		Payer:            payer,
+		Reciever:         reciever,
+		Transaction_sum:  200000,
+		Accepted:         true,
+		Success:          false,
+		Transaction_type: models.TRANSFER,
+	}
+
+	system := &transactioner.System{}
+	general.RequestTansaction(reciever, transaction)
+	if transaction.Err != nil {
+		transaction.Err = errors.New("Request transaction error")
+		return
+	}
+	general.AcceptTransaction(payer, transaction)
+	if !transaction.Accepted {
+		transaction.Err = errors.New("Denied by payer")
+		save(transaction)
+		return
+	}
+	transaction.Err = errors.New("Simulated error")
+	database.DB.Err = errors.New("DATABASE UNAVAILABLE")
+	general.MakeTransaction(system, transaction)
+	if transaction.Err != nil {
+		// В процессе транзакции произошла ошибка
+		// Сохранить в бд. Если не получилось в бд, сохранить в кэш
+		fmt.Println(transaction.Payer, transaction.Reciever)
+		save(transaction)
+		return
+	}
+	save(transaction)
 }
 
 func showCache(m map[string]any) {
@@ -240,5 +295,5 @@ func showCache(m map[string]any) {
 }
 
 func TestCache(t *testing.T) {
-	showCache(cache.TC.Storage)
+	showCache(cache.TransactionsCache.Storage)
 }
