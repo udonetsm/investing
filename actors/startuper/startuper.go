@@ -3,7 +3,7 @@
 package startuper
 
 import (
-	"github.com/udonetsm/investing/actions/general"
+	"github.com/udonetsm/investing/general"
 	"github.com/udonetsm/investing/models"
 )
 

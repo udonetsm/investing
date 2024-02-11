@@ -1,7 +1,7 @@
 package methods
 
 import (
-	"github.com/udonetsm/investing/database/funcs"
+	"github.com/udonetsm/investing/actors/database/funcs"
 	"github.com/udonetsm/investing/models"
 )
 
