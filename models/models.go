@@ -3,6 +3,12 @@ package models
 
 import "sync"
 
+const (
+	TRANSFER = iota
+	WITHDRAW
+	TOPUP
+)
+
 type Startupers struct {
 	User Users
 	Bill Bills
@@ -31,16 +37,18 @@ type Startups struct {
 
 type Bills struct {
 	Bill_id int //Primary key
-	Balance float32
+	Balance int
 }
 
 type Transaction struct {
-	Transaction_id string //Primary key
-	Payer          Payer
-	Reciever       Reciever
-	Sum            float32
-	Err            error
-	Success        bool
+	Transaction_id   string //Primary key
+	Transaction_type int
+	Payer            Payer
+	Reciever         Reciever
+	Transaction_sum  int
+	Err              error
+	Success          bool
+	Accepted         bool
 }
 
 type Database struct {
@@ -58,10 +66,16 @@ type Cache struct {
 	Err     error
 }
 
+type System struct {
+	//Элементы системы
+}
+
 type Reciever interface {
-	Recieve(Transaction) Transaction
+	Recieve(*Transaction)
 }
 
 type Payer interface {
-	DoTransaction(Transaction) Transaction
+	Pay(*Transaction)
+	Topup(*Transaction)
+	Withdraw(*Transaction)
 }
