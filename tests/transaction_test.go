@@ -4,15 +4,14 @@ package tests
 import (
 	"errors"
 	"fmt"
-	"log"
 	"strconv"
 	"testing"
 	"time"
 
-	"github.com/udonetsm/investing/actors/cache"
-	"github.com/udonetsm/investing/actors/database"
 	"github.com/udonetsm/investing/actors/investor"
 	"github.com/udonetsm/investing/actors/startuper"
+	"github.com/udonetsm/investing/actors/storage/cache"
+	"github.com/udonetsm/investing/actors/storage/database"
 	"github.com/udonetsm/investing/actors/system"
 	"github.com/udonetsm/investing/general"
 	"github.com/udonetsm/investing/models"
@@ -61,12 +60,13 @@ func TestStartuperToInvestorWithoutError(t *testing.T) {
 	system := &system.System{}
 	general.RequestTansaction(reciever, transaction)
 	if transaction.Err != nil {
-		transaction.Err = errors.New("Request transaction error")
+		transaction.Err = errors.Join(transaction.Err, fmt.Errorf("Request transaction error"))
+		save(transaction)
 		return
 	}
 	general.AcceptTransaction(payer, transaction)
 	if !transaction.Accepted {
-		transaction.Err = errors.New("Denied by payer")
+		transaction.Err = errors.Join(transaction.Err, fmt.Errorf("Denied by payer"))
 		save(transaction)
 		return
 	}
@@ -77,25 +77,27 @@ func TestStartuperToInvestorWithoutError(t *testing.T) {
 		save(transaction)
 		return
 	}
-	// Посмотреть как изменились и изменились ли былансы при отсутствии ошибок во время всех операций
-	fmt.Println(transaction.Payer, transaction.Reciever)
 	save(transaction)
 }
 
 func save(transaction *models.Transaction) {
 	general.SaveSomething(&database.DB, transaction)
 	if database.DB.Err != nil {
-		fmt.Print("Database error...")
+		fmt.Print("Can't save into the database...")
 		general.SaveSomething(&cache.TransactionsCache, transaction)
 		if cache.TransactionsCache.Err != nil {
+			fmt.Printf("Can't save into the cache...%v %v %v\n",
+				transaction.Success, transaction.Transaction_id, transaction.Err)
 			fmt.Print("Cache error...")
 			return
 		} else {
-			fmt.Printf("Saved into the cache...%v %v %v\n", transaction.Success, transaction.Transaction_id, transaction.Err)
+			fmt.Printf("Saved into the cache...%v %v %v\n",
+				transaction.Success, transaction.Transaction_id, transaction.Err)
 			return
 		}
 	} else {
-		fmt.Println("Saved into the database...\n", transaction.Success, transaction.Transaction_id, transaction.Err)
+		fmt.Println("Saved into the database...\n",
+			transaction.Success, transaction.Transaction_id, transaction.Err)
 		return
 	}
 }
@@ -281,7 +283,6 @@ func TestTransferWithTransactionAndDatabaseError(t *testing.T) {
 	if transaction.Err != nil {
 		// В процессе транзакции произошла ошибка
 		// Сохранить в бд. Если не получилось в бд, сохранить в кэш
-		fmt.Println(transaction.Payer, transaction.Reciever)
 		save(transaction)
 		return
 	}
@@ -290,7 +291,16 @@ func TestTransferWithTransactionAndDatabaseError(t *testing.T) {
 
 func showCache(m map[string]any) {
 	for _, v := range m {
-		log.Println(v)
+		fmt.Println(
+			v.(*models.Transaction).Transaction_id,
+			v.(*models.Transaction).Payer,
+			v.(*models.Transaction).Reciever,
+			v.(*models.Transaction).Transaction_type,
+			v.(*models.Transaction).Success,
+			v.(*models.Transaction).Accepted,
+			v.(*models.Transaction).Err,
+			v.(*models.Transaction).Transaction_sum,
+		)
 	}
 }
 
