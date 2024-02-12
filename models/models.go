@@ -4,19 +4,21 @@ package models
 import "sync"
 
 const (
-	TRANSFER = iota
-	WITHDRAW
-	TOPUP
+	TRANSFER = "Transfer"
+	WITHDRAW = "Withdraw"
+	TOPUP    = "Topup"
 )
 
 type Startupers struct {
-	User Users
-	Bill Bills
+	User       Users
+	Bill       Bills
+	Founder_of []Startups
 }
 
 type Investors struct {
-	User Users
-	Bill Bills
+	User      Users
+	Bill      Bills
+	Member_of []Startups
 }
 
 type Users struct {
@@ -32,7 +34,7 @@ type Startups struct {
 	Total        int
 	Raiting      int
 	Startup_name string
-	Members      []Investors
+	Members      []BaseUser
 }
 
 type Bills struct {
@@ -42,9 +44,9 @@ type Bills struct {
 
 type Transaction struct {
 	Transaction_id   string //Primary key
-	Transaction_type int
-	Payer            Payer
-	Reciever         Reciever
+	Transaction_type string
+	Payer            BaseUser
+	Reciever         BaseUser
 	Transaction_sum  int
 	Err              error
 	Success          bool
@@ -68,6 +70,8 @@ type Cache struct {
 
 type System struct {
 	//Элементы системы
+	Domain string
+	Bill   Bills
 }
 
 type Reciever interface {
@@ -76,6 +80,29 @@ type Reciever interface {
 
 type Payer interface {
 	Pay(*Transaction)
+}
+
+type Topuper interface {
 	Topup(*Transaction)
+}
+
+type Withdrawer interface {
 	Withdraw(*Transaction)
+}
+
+type Requester interface {
+	RequestTransaction(*Transaction)
+}
+
+type Accepter interface {
+	AcceptTransaction(*Transaction)
+}
+
+type BaseUser interface {
+	Payer
+	Reciever
+	Topuper
+	Withdrawer
+	Accepter
+	Requester
 }

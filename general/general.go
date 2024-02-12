@@ -13,21 +13,21 @@ func SaveSomething(saver interfaces.Saver, transaction *models.Transaction) {
 }
 
 // Задействовать методы переданного интерфейсного типа и передать им транзакцию для обрабобтки
-func RequestTansaction(requester interfaces.Requester, transaction *models.Transaction) {
+func RequestTansaction(requester models.BaseUser, transaction *models.Transaction) {
 	requester.RequestTransaction(transaction)
 }
 
 // Задействовать методы переданного интерфейсного типа и передать им транзакцию для обрабобтки
-func AcceptTransaction(accepter interfaces.Accepter, transaction *models.Transaction) {
+func AcceptTransaction(accepter models.BaseUser, transaction *models.Transaction) {
 	accepter.AcceptTransaction(transaction)
 }
 
 // Задействовать методы переданного интерфейсного типа и передать им транзакцию для обрабобтки
-func MakeTransaction(transactioner interfaces.Tranactioner, transaction *models.Transaction) {
+func MakeTransaction(transactioner interfaces.TransferTopupWithdrawTransactioner, transaction *models.Transaction) {
 	transactioner.TransferTransaction(transaction)
 }
 
-// Делает запрос плательщику
+// Делает плательщику запрос на подтверждение операции
 func MakeRequest(transaction *models.Transaction) error {
 	return nil
 }

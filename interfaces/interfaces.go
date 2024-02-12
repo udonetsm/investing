@@ -8,17 +8,29 @@ type Saver interface {
 	Save(*models.Transaction)
 }
 
-type Requester interface {
-	RequestTransaction(*models.Transaction)
+type Updater interface {
 }
 
-type Accepter interface {
-	AcceptTransaction(*models.Transaction)
+type SaveUpdater interface {
+	Saver
+	Updater
 }
 
 // Полный список транзакций, которые делает система.
-type Tranactioner interface {
+type TransaferTransactioner interface {
 	TransferTransaction(*models.Transaction)
+}
+
+type TopupTrnsactioner interface {
 	TopupTransaction(*models.Transaction)
+}
+
+type WithdrawTransactioner interface {
 	WithdrawTransaction(*models.Transaction)
+}
+
+type TransferTopupWithdrawTransactioner interface {
+	TransaferTransactioner
+	TopupTrnsactioner
+	WithdrawTransactioner
 }
