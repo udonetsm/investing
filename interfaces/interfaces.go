@@ -2,35 +2,51 @@
 // Several else are in models. Not here to avoid cycle import
 package interfaces
 
-import "github.com/udonetsm/investing/models"
+import (
+	"github.com/udonetsm/investing/actors/stack"
+	"github.com/udonetsm/investing/models"
+)
 
-type Saver interface {
-	Save(*models.Transaction)
+type SomethingSaver interface {
+	Save(any) *models.Reply
 }
 
-type Updater interface {
+type SomethingGeter interface {
+	Get(any) *models.Reply
 }
 
-type SaveUpdater interface {
-	Saver
-	Updater
+type SomethingUpdater interface {
+	Update(string, string, any, any) *models.Reply
 }
 
-// Полный список транзакций, которые делает система.
-type TransaferTransactioner interface {
-	TransferTransaction(*models.Transaction)
+type SomethingSaveGetUpdater interface {
+	SomethingSaver
+	SomethingGeter
+	SomethingUpdater
 }
 
-type TopupTrnsactioner interface {
-	TopupTransaction(*models.Transaction)
+type LastSeenGeter interface {
+	GetLastSeen(string) int64
 }
 
-type WithdrawTransactioner interface {
-	WithdrawTransaction(*models.Transaction)
+type LastSeenSeter interface {
+	SetLastSeen(string, int64)
 }
 
-type TransferTopupWithdrawTransactioner interface {
-	TransaferTransactioner
-	TopupTrnsactioner
-	WithdrawTransactioner
+type LastSeenSetGeter interface {
+	LastSeenGeter
+	LastSeenSeter
+}
+
+type Subscriber interface {
+	Subscribe(string) *stack.Stack
+}
+
+type Publisher interface {
+	Publish(string)
+}
+
+type SubscribePublisher interface {
+	Subscriber
+	Publisher
 }

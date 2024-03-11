@@ -1,33 +1,36 @@
 package general
 
 import (
+	"github.com/udonetsm/investing/actors/stack"
 	"github.com/udonetsm/investing/interfaces"
 	"github.com/udonetsm/investing/models"
 )
 
-// The function Saves any object into any spaces.
-// To use it, space object sould implement its method
-// Save(any)error
-func SaveSomething(saver interfaces.Saver, transaction *models.Transaction) {
-	saver.Save(transaction)
+// Saves not transactions in any sql-databases
+func Save(saver interfaces.SomethingSaveGetUpdater, something any) *models.Reply {
+	return saver.Save(something)
 }
 
-// Задействовать методы переданного интерфейсного типа и передать им транзакцию для обрабобтки
-func RequestTansaction(requester models.BaseUser, transaction *models.Transaction) {
-	requester.RequestTransaction(transaction)
+func Get(geter interfaces.SomethingSaveGetUpdater, something any) *models.Reply {
+	return geter.Get(something)
 }
 
-// Задействовать методы переданного интерфейсного типа и передать им транзакцию для обрабобтки
-func AcceptTransaction(accepter models.BaseUser, transaction *models.Transaction) {
-	accepter.AcceptTransaction(transaction)
+func Update(updater interfaces.SomethingSaveGetUpdater, targetKeyStr, targetValueStr string, targetModel, newEntry any) *models.Reply {
+	return updater.Update(targetKeyStr, targetValueStr, targetModel, newEntry)
 }
 
-// Задействовать методы переданного интерфейсного типа и передать им транзакцию для обрабобтки
-func MakeTransaction(transactioner interfaces.TransferTopupWithdrawTransactioner, transaction *models.Transaction) {
-	transactioner.TransferTransaction(transaction)
+func GetLastSeen(setgeter interfaces.LastSeenSetGeter, uid string) int64 {
+	return setgeter.GetLastSeen(uid)
 }
 
-// Делает плательщику запрос на подтверждение операции
-func MakeRequest(transaction *models.Transaction) error {
-	return nil
+func SetLastSeen(setgeter interfaces.LastSeenSetGeter, uid string, timestamp int64) {
+	setgeter.SetLastSeen(uid, timestamp)
+}
+
+func Subcribe(subscriber interfaces.SubscribePublisher, uid string) *stack.Stack {
+	return subscriber.Subscribe(uid)
+}
+
+func Publish(publisher interfaces.SubscribePublisher, targetUID string) {
+	publisher.Publish(targetUID)
 }

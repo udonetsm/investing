@@ -1,56 +1,61 @@
 // Database models
 package models
 
-import "sync"
+import (
+	"sync"
 
-const (
-	TRANSFER = "Transfer"
-	WITHDRAW = "Withdraw"
-	TOPUP    = "Topup"
+	"github.com/redis/go-redis/v9"
 )
 
-type Startupers struct {
-	User       Users
-	Bill       Bills
-	Founder_of []Startups
+const (
+	INVESTING = "0"
+	RETURNING = "1"
+	WITHDRAW  = "2"
+	TOPUP     = "3"
+)
+
+type Userentry struct {
+	Uid      string `gorm:"uid" json:"uid"`
+	Baseuser string `gorm:"baseuser" json:"daseuser"`
+}
+type Transactionentry struct {
+	Tid         string `gorm:"tid" json:"tid"`
+	Transaction string `gorm:"transaction" json:"transaction"`
 }
 
-type Investors struct {
-	User      Users
-	Bill      Bills
-	Member_of []Startups
-}
-
-type Users struct {
-	User_id   int
-	Raiting   int
-	User_name string
-	Bill_id   int //Foreign key references Bills(Bill_id)
+type User struct {
+	// ИНН в качестве uid устанваливается если пользователь прикрепил соответствующие документы и прошел проверку
+	// До тех пор в качестве uid используется random uuid
+	Uid     string `json:"uid"`
+	Raiting int    `json:"raiting,omitempty"`
+	Uname   string `json:"uname,omitempty"`
+	// Member of contains startup ids where user invested
+	Memberof []string `json:"memberof,omitempty"`
+	// Founderof contains startup ids which user founded
+	Founderof []string `json:"founder,omitempty"`
+	Balance   int      `json:"balance,omitempty"`
 }
 
 type Startups struct {
-	Startup_id   int //Primary key
-	Startuper_id int //Foreign key references Startupers.Startuper_id
-	Total        int
-	Raiting      int
-	Startup_name string
-	Members      []BaseUser
-}
-
-type Bills struct {
-	Bill_id int //Primary key
-	Balance int
+	Startup_id string `json:"startupid"`
+	Founder_id string `json:"founderid,omitempty"`
+	// Members contains ids of all members who is a part of startup_id as investor or founder
+	Members []string `json:"members,omitempty"`
+	Total   int      `json:"total,omitempty"`
+	Raiting int      `json:"raiting,omitempty"`
+	Desc    string   `json:"desc,omitempty"`
 }
 
 type Transaction struct {
-	Transaction_id   string //Primary key
-	Transaction_type string
-	Payer            BaseUser
-	Reciever         BaseUser
-	Transaction_sum  int
-	Err              error
-	Success          bool
-	Accepted         bool
+	Tid           string `json:"tid"`
+	Type          string `json:"ttype,omitempty"`
+	Requested_sum int    `json:"sum,omitempty"`
+	DenyReason    int    `json:"denyreason,omitempty"`
+	Payer         User   `json:"payer,omitempty"`
+	Reciever      User   `json:"reciever,omitempty"`
+	Err           error  `json:"-"`
+	Success       bool   `json:"success,omitempty"`
+	Accepted      bool   `json:"accepted,omitempty"`
 }
 
 type Database struct {
@@ -58,51 +63,39 @@ type Database struct {
 	Pass    string
 	Host    string
 	Port    int
-	SSLMode bool
+	Dbname  string
+	SSLMode string
 	Err     error
 }
 
 type Cache struct {
 	Mux     *sync.Mutex
-	Storage map[string]any
+	Storage map[any]any
 	Err     error
 }
 
-type System struct {
-	//Элементы системы
-	Domain string
-	Bill   Bills
+type Redis struct {
+	Client *redis.Client
+	Key    string
+	Value  string
+	Error  error
 }
 
-type Reciever interface {
-	Recieve(*Transaction)
+type Stack struct {
+	Mess  []*Messages
+	Count int
 }
 
-type Payer interface {
-	Pay(*Transaction)
+type Messages struct {
+	Message   any   `json:"message,omitempty"`
+	Timestamp int64 `json:"timestamp,omitempty"`
+	Counter   int   `json:"counter,omitempty"`
+	Error     any   `json:"error,omitempty"`
 }
 
-type Topuper interface {
-	Topup(*Transaction)
+type Reply struct {
+	Content any `json:"content,omitempty"`
+	Error   any `json:"error,omitempty"`
 }
 
-type Withdrawer interface {
-	Withdraw(*Transaction)
-}
-
-type Requester interface {
-	RequestTransaction(*Transaction)
-}
-
-type Accepter interface {
-	AcceptTransaction(*Transaction)
-}
-
-type BaseUser interface {
-	Payer
-	Reciever
-	Topuper
-	Withdrawer
-	Accepter
-	Requester
-}
+type Stub struct{}
