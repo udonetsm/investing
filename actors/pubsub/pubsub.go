@@ -1,3 +1,4 @@
+// Lost
 package pubsub
 
 import (
